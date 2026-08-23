@@ -312,5 +312,286 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
 	<!-- Start of bodyEnd -->
     
     <!-- End of bodyEnd -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      window.addEventListener('load', function() {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        const CSS = `
+          a.framer-1skhlgj { display: none !important; }
+          .custom-pdf-container { position: relative; width: 100%; background: #fdfdfd; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; transition: aspect-ratio 0.3s ease; }
+          .custom-pdf-canvas, .custom-pdf-cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.2s ease-out; }
+          .custom-pdf-cover { display: flex; justify-content: center; align-items: center; background: #fff; }
+          .custom-pdf-cover img { width: 100%; height: 100%; object-fit: cover; }
+          .custom-pdf-canvas { object-fit: contain; }
+          
+          .custom-pdf-controls {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(20, 20, 20, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 6px 12px;
+            border-radius: 100px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 20;
+          }
+          .custom-pdf-container:hover .custom-pdf-controls {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+          
+          .custom-pdf-nav, .custom-pdf-fullscreen {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            transition: background 0.2s ease;
+            padding: 0;
+          }
+          .custom-pdf-nav:hover, .custom-pdf-fullscreen:hover {
+            background: rgba(255, 255, 255, 0.15);
+          }
+          .custom-pdf-nav:active, .custom-pdf-fullscreen:active {
+            background: rgba(255, 255, 255, 0.25);
+          }
+          .custom-pdf-nav.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+          }
+          .custom-pdf-nav svg, .custom-pdf-fullscreen svg {
+            width: 20px;
+            height: 20px;
+            fill: #fff;
+          }
+          .custom-pdf-page-info {
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 60px;
+            text-align: center;
+            user-select: none;
+            padding: 0 4px;
+            white-space: nowrap;
+          }
+          .custom-pdf-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 4px;
+          }
+          
+          /* Responsive adjustments */
+          @media (max-width: 768px), (hover: none) {
+            .custom-pdf-controls {
+              opacity: 1;
+              transform: translateX(-50%) translateY(0);
+              bottom: 16px;
+              padding: 4px 8px;
+            }
+            .custom-pdf-nav, .custom-pdf-fullscreen {
+              width: 32px;
+              height: 32px;
+            }
+            .custom-pdf-page-info {
+              font-size: 13px;
+              min-width: 50px;
+            }
+          }
+        `;
+        const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
+
+        async function renderPdfContainer(container, pdfUrl) {
+          if (container.dataset.pdfInjected) return;
+          container.dataset.pdfInjected = 'true';
+          
+          const originalChildren = Array.from(container.children);
+          const wrapper = document.createElement('div'); wrapper.className = 'custom-pdf-container';
+          
+          const coverWrapper = document.createElement('div'); coverWrapper.className = 'custom-pdf-cover';
+          originalChildren.forEach(child => {
+            if (child.tagName === 'IMG') {
+               child.style.width = '100%';
+               child.style.height = '100%';
+               child.style.objectFit = 'cover';
+            }
+            coverWrapper.appendChild(child);
+          });
+          
+          // Use a dual-canvas system for true crossfade transitions
+          const canvas1 = document.createElement('canvas'); canvas1.className = 'custom-pdf-canvas';
+          const canvas2 = document.createElement('canvas'); canvas2.className = 'custom-pdf-canvas';
+          canvas1.style.opacity = '0'; canvas1.style.pointerEvents = 'none';
+          canvas2.style.opacity = '0'; canvas2.style.pointerEvents = 'none';
+          
+          let activeCanvas = canvas1;
+          let inactiveCanvas = canvas2;
+          
+          const controls = document.createElement('div'); controls.className = 'custom-pdf-controls';
+          
+          const prevBtn = document.createElement('button'); prevBtn.className = 'custom-pdf-nav prev'; prevBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>';
+          const pageInfo = document.createElement('span'); pageInfo.className = 'custom-pdf-page-info'; pageInfo.textContent = '- / -';
+          const nextBtn = document.createElement('button'); nextBtn.className = 'custom-pdf-nav next'; nextBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>';
+          
+          const divider = document.createElement('div'); divider.className = 'custom-pdf-divider';
+          const fsBtn = document.createElement('button'); fsBtn.className = 'custom-pdf-fullscreen'; fsBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>';
+
+          controls.appendChild(prevBtn);
+          controls.appendChild(pageInfo);
+          controls.appendChild(nextBtn);
+          controls.appendChild(divider);
+          controls.appendChild(fsBtn);
+          
+          wrapper.appendChild(coverWrapper);
+          wrapper.appendChild(canvas1);
+          wrapper.appendChild(canvas2);
+          wrapper.appendChild(controls);
+          container.appendChild(wrapper);
+
+          let pdfDoc = null, pageNum = 0, pageIsRendering = false, pageNumPending = null;
+          let pdfAspectRatio = 1.5; // default fallback
+
+          try {
+            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            
+            // Calculate aspect ratio from the first page immediately so container doesn't jump
+            const firstPage = await pdfDoc.getPage(1);
+            const viewport = firstPage.getViewport({ scale: 1.0 });
+            pdfAspectRatio = viewport.width / viewport.height;
+            wrapper.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
+            
+            renderCurrentState();
+          } catch (e) { console.error(e); }
+
+          function updateButtons() {
+            prevBtn.classList.toggle('disabled', pageNum <= 0);
+            nextBtn.classList.toggle('disabled', !pdfDoc || pageNum >= pdfDoc.numPages);
+            if (pageNum === 0) {
+               pageInfo.textContent = `Cover / ${pdfDoc ? pdfDoc.numPages : '-'}`;
+            } else {
+               pageInfo.textContent = `${pageNum} / ${pdfDoc ? pdfDoc.numPages : '-'}`;
+            }
+          }
+
+          async function renderCurrentState() {
+            if (pageNum === 0) {
+              activeCanvas.style.opacity = '0';
+              activeCanvas.style.pointerEvents = 'none';
+              inactiveCanvas.style.opacity = '0';
+              inactiveCanvas.style.pointerEvents = 'none';
+              
+              coverWrapper.style.opacity = '1';
+              coverWrapper.style.pointerEvents = 'auto';
+              updateButtons();
+              return;
+            }
+            
+            // Fade out the cover immediately when viewing PDF pages
+            coverWrapper.style.opacity = '0';
+            coverWrapper.style.pointerEvents = 'none';
+            
+            pageIsRendering = true;
+            try {
+              const page = await pdfDoc.getPage(pageNum);
+              const containerWidth = wrapper.clientWidth || 800;
+              const scale = containerWidth / page.getViewport({ scale: 1.0 }).width;
+              const viewport = page.getViewport({ scale });
+              
+              const dpr = window.devicePixelRatio || 1;
+              const ctx = inactiveCanvas.getContext('2d');
+              inactiveCanvas.width = viewport.width * dpr;
+              inactiveCanvas.height = viewport.height * dpr;
+              ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+              await page.render({ canvasContext: ctx, viewport }).promise;
+              
+              // Crossfade: Show the newly rendered inactiveCanvas, and hide the old activeCanvas
+              inactiveCanvas.style.opacity = '1';
+              inactiveCanvas.style.pointerEvents = 'auto';
+              
+              activeCanvas.style.opacity = '0';
+              activeCanvas.style.pointerEvents = 'none';
+              
+              // Swap variables for the next transition
+              const temp = activeCanvas;
+              activeCanvas = inactiveCanvas;
+              inactiveCanvas = temp;
+              
+              pageIsRendering = false; updateButtons();
+              if (pageNumPending !== null) { 
+                const p = pageNumPending; 
+                pageNumPending = null; 
+                if (p !== pageNum) {
+                  pageNum = p;
+                  renderCurrentState(); 
+                }
+              }
+            } catch (e) { pageIsRendering = false; }
+          }
+          
+          prevBtn.onclick = () => { if (pageNum > 0) { pageNum--; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          nextBtn.onclick = () => { if (pageNum < pdfDoc.numPages) { pageNum++; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          fsBtn.onclick = () => {
+            if (!document.fullscreenElement) {
+              wrapper.requestFullscreen().catch(err => {
+                alert(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+              });
+            } else {
+              document.exitFullscreen();
+            }
+          };
+
+          let resizeTimer;
+          window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+              if (!document.body.contains(wrapper)) return;
+              if (pdfDoc && pageNum > 0) {
+                pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+              }
+            }, 200);
+          });
+        }
+
+        function checkAndInject() {
+          const path = window.location.pathname.toLowerCase();
+          let pdfUrl = null;
+          
+          if (path.includes('zepto')) {
+            pdfUrl = '/documents/NLZeptoGOV.pdf';
+          } else if (path.includes('myntra')) {
+            pdfUrl = '/documents/Myntra.pdf';
+          } else if (path.includes('book-my-show') || path.includes('bookmyshow')) {
+            pdfUrl = '/documents/BookMyShow.pdf';
+          } else if (path.includes('zomato')) {
+            pdfUrl = '/documents/Zomato.pdf';
+          } else if (path.includes('city-connect') || path.includes('cityconnect')) {
+            pdfUrl = '/documents/CityConnect.pdf';
+          } else if (path.includes('product-teardown') || path.includes('hyperverge') || path.includes('teardown')) {
+            pdfUrl = '/documents/ProductTeardown.pdf';
+          }
+          
+          if (pdfUrl) {
+            document.querySelectorAll('a.framer-1skhlgj + div').forEach(c => renderPdfContainer(c, pdfUrl));
+          }
+        }
+        setTimeout(checkAndInject, 500);
+        new MutationObserver(checkAndInject).observe(document.body, { childList: true, subtree: true });
+      });
+    </script>
 </body>
 </html>
