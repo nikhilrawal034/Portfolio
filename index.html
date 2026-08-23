@@ -320,6 +320,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
         const CSS = `
           a[href$=".pdf"] { display: none !important; }
           .custom-pdf-container { position: relative; width: 100%; background: #fdfdfd; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; transition: aspect-ratio 0.3s ease; }
+          .custom-pdf-fallback { width: min(928px, 90%); margin: 80px auto; }
           .custom-pdf-canvas, .custom-pdf-cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.2s ease-out; }
           .custom-pdf-cover { display: flex; justify-content: center; align-items: center; background: #fff; }
           .custom-pdf-cover img { width: 100%; height: 100%; object-fit: cover; }
@@ -466,7 +467,13 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           let pdfAspectRatio = 1.5; // default fallback
 
           try {
-            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            try {
+              pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            } catch (error) {
+              const fallbackUrl = pdfUrl.replace(/^\/documents\//, '/public/documents/');
+              if (fallbackUrl === pdfUrl) throw error;
+              pdfDoc = await pdfjsLib.getDocument(fallbackUrl).promise;
+            }
             
             // Calculate aspect ratio from the first page immediately so container doesn't jump
             const firstPage = await pdfDoc.getPage(1);
@@ -586,7 +593,16 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           }
           
           if (pdfUrl) {
-            document.querySelectorAll('a[href$=".pdf"] + div').forEach(c => renderPdfContainer(c, pdfUrl));
+            const containers = document.querySelectorAll('a[href$=".pdf"] + div, [data-pdf-viewer], .pdf-viewer');
+            if (containers.length) {
+              containers.forEach(c => renderPdfContainer(c, pdfUrl));
+            } else if (!document.querySelector('[data-pdf-fallback]')) {
+              const fallback = document.createElement('div');
+              fallback.dataset.pdfFallback = 'true';
+              fallback.className = 'custom-pdf-fallback';
+              document.querySelector('#main')?.appendChild(fallback);
+              renderPdfContainer(fallback, pdfUrl);
+            }
           }
         }
         setTimeout(checkAndInject, 500);
