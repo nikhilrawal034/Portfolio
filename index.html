@@ -670,14 +670,20 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           }
           
           if (pdfUrl) {
-            const containers = document.querySelectorAll('a[href$=".pdf"] + div, [data-pdf-viewer], .pdf-viewer');
+            // Find the huge project cover image container
+            const coverImg = Array.from(document.querySelectorAll('img')).find(img => parseInt(img.getAttribute('width') || '0') > 2000);
+            const containers = coverImg && coverImg.parentElement ? [coverImg.parentElement.parentElement] : [];
+            
             if (containers.length) {
               containers.forEach(c => renderPdfContainer(c, pdfUrl));
             } else if (!document.querySelector('[data-pdf-fallback]')) {
               const fallback = document.createElement('div');
               fallback.dataset.pdfFallback = 'true';
               fallback.className = 'custom-pdf-fallback';
-              document.querySelector('#main')?.appendChild(fallback);
+              
+              // Find the project page content wrapper if possible, otherwise use #main
+              const targetParent = document.querySelector('[data-framer-name="Desktop"], [data-framer-name="Tablet"], [data-framer-name="Phone"]') || document.querySelector('#main') || document.body;
+              targetParent.appendChild(fallback);
               renderPdfContainer(fallback, pdfUrl);
             }
           }
