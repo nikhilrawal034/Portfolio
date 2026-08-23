@@ -579,17 +579,17 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           let pdfUrl = null;
           
           if (path.includes('zepto')) {
-            pdfUrl = '/documents/NLZeptoGOV.pdf';
+            pdfUrl = '/public/documents/NLZeptoGOV.pdf';
           } else if (path.includes('myntra')) {
-            pdfUrl = '/documents/Myntra.pdf';
+            pdfUrl = '/public/documents/Myntra.pdf';
           } else if (path.includes('book-my-show') || path.includes('bookmyshow')) {
-            pdfUrl = '/documents/BookMyShow.pdf';
+            pdfUrl = '/public/documents/BookMyShow.pdf';
           } else if (path.includes('zomato')) {
-            pdfUrl = '/documents/Zomato.pdf';
+            pdfUrl = '/public/documents/Zomato.pdf';
           } else if (path.includes('city-connect') || path.includes('cityconnect')) {
-            pdfUrl = '/documents/CityConnect.pdf';
+            pdfUrl = '/public/documents/CityConnect.pdf';
           } else if (path.includes('product-teardown') || path.includes('hyperverge') || path.includes('teardown')) {
-            pdfUrl = '/documents/ProductTeardown.pdf';
+            pdfUrl = '/public/documents/ProductTeardown.pdf';
           }
           
           if (pdfUrl) {
@@ -605,6 +605,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             }
           }
         }
+        checkAndInject();
         setTimeout(checkAndInject, 500);
         new MutationObserver(checkAndInject).observe(document.body, { childList: true, subtree: true });
       });
