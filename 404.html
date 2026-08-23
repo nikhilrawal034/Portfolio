@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Loading...</title>
+    <script>
+      const route = window.location.pathname + window.location.search;
+      const hash = window.location.hash;
+      window.location.replace('/?route=' + encodeURIComponent(route) + hash);
+    </script>
+  </head>
+  <body></body>
+</html>

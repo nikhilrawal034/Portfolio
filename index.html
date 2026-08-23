@@ -650,7 +650,8 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
         }
 
         function checkAndInject() {
-          const path = window.location.pathname.toLowerCase();
+          const route = new URLSearchParams(window.location.search).get('route');
+          const path = (route || window.location.pathname).toLowerCase();
           const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
           const documentRoot = isLocalhost ? '/documents/' : '/public/documents/';
           let pdfUrl = null;
