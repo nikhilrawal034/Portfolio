@@ -676,7 +676,12 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             const containers = coverImg && coverImg.parentElement ? [coverImg.parentElement.parentElement] : [];
             
             if (containers.length) {
-              containers.forEach(c => renderPdfContainer(c, pdfUrl));
+              containers.forEach(c => {
+                if (!c.dataset.pdfRendered) {
+                  c.dataset.pdfRendered = 'true';
+                  renderPdfContainer(c, pdfUrl);
+                }
+              });
             } else if (!document.querySelector('[data-pdf-fallback]')) {
               const fallback = document.createElement('div');
               fallback.dataset.pdfFallback = 'true';
