@@ -318,7 +318,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
         const CSS = `
-          a.framer-1skhlgj { display: none !important; }
+          a[href$=".pdf"] { display: none !important; }
           .custom-pdf-container { position: relative; width: 100%; background: #fdfdfd; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; transition: aspect-ratio 0.3s ease; }
           .custom-pdf-canvas, .custom-pdf-cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.2s ease-out; }
           .custom-pdf-cover { display: flex; justify-content: center; align-items: center; background: #fff; }
@@ -586,7 +586,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           }
           
           if (pdfUrl) {
-            document.querySelectorAll('a.framer-1skhlgj + div').forEach(c => renderPdfContainer(c, pdfUrl));
+            document.querySelectorAll('a[href$=".pdf"] + div').forEach(c => renderPdfContainer(c, pdfUrl));
           }
         }
         setTimeout(checkAndInject, 500);
