@@ -439,12 +439,14 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           const coverWrapper = document.createElement('div'); coverWrapper.className = 'custom-pdf-cover';
           originalChildren.forEach(child => {
-            if (child.tagName === 'IMG') {
-               child.style.width = '100%';
-               child.style.height = '100%';
-               child.style.objectFit = 'cover';
+            const clone = child.cloneNode(true);
+            if (clone.tagName === 'IMG') {
+               clone.style.width = '100%';
+               clone.style.height = '100%';
+               clone.style.objectFit = 'cover';
             }
-            coverWrapper.appendChild(child);
+            coverWrapper.appendChild(clone);
+            child.style.display = 'none';
           });
           
           // Use a dual-canvas system for true crossfade transitions
@@ -672,7 +674,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           if (pdfUrl) {
             // Find the huge project cover image container
-            const coverImg = Array.from(document.querySelectorAll('img')).find(img => parseInt(img.getAttribute('width') || '0') > 2000);
+            const coverImg = Array.from(document.querySelectorAll('img')).find(img => parseInt(img.getAttribute('width') || '0') > 2000 && !img.closest('.custom-pdf-container'));
             const containers = coverImg && coverImg.parentElement ? [coverImg.parentElement.parentElement] : [];
             
             if (containers.length) {
@@ -694,8 +696,13 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             }
           }
         }
-        checkAndInject();
-        new MutationObserver(checkAndInject).observe(document.body, { childList: true, subtree: true });
+        let injectTimer;
+        const debouncedCheck = () => {
+          clearTimeout(injectTimer);
+          injectTimer = setTimeout(checkAndInject, 100);
+        };
+        debouncedCheck();
+        new MutationObserver(debouncedCheck).observe(document.body, { childList: true, subtree: true });
       })();
     </script>
 </body>
