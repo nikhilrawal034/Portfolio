@@ -392,6 +392,77 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             height: 20px;
             fill: #fff;
           }
+          .custom-pdf-side-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(20, 20, 20, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            z-index: 20;
+            opacity: 0;
+            transition: all 0.3s ease;
+            color: #fff;
+          }
+          .custom-pdf-container:hover .custom-pdf-side-arrow {
+            opacity: 1;
+          }
+          .custom-pdf-side-arrow:hover {
+            background: rgba(20, 20, 20, 0.7);
+          }
+          .custom-pdf-side-arrow svg {
+            width: 24px;
+            height: 24px;
+            fill: #fff;
+          }
+          .custom-pdf-side-arrow.left { left: 20px; }
+          .custom-pdf-side-arrow.right { right: 20px; }
+          
+          .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow,
+          .custom-pdf-container:fullscreen .custom-pdf-side-arrow {
+            opacity: 1;
+            width: 64px;
+            height: 64px;
+            background: rgba(20, 20, 20, 0.6);
+          }
+          .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow svg,
+          .custom-pdf-container:fullscreen .custom-pdf-side-arrow svg {
+            width: 32px;
+            height: 32px;
+          }
+          
+          @media (max-width: 768px) {
+            .custom-pdf-side-arrow:not(.pseudo-fullscreen .custom-pdf-side-arrow):not(:fullscreen .custom-pdf-side-arrow) {
+              display: none;
+            }
+            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow,
+            .custom-pdf-container:fullscreen .custom-pdf-side-arrow {
+              width: 48px;
+              height: 48px;
+              opacity: 0.8;
+            }
+            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow.left,
+            .custom-pdf-container:fullscreen .custom-pdf-side-arrow.left {
+              left: 10px;
+            }
+            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow.right,
+            .custom-pdf-container:fullscreen .custom-pdf-side-arrow.right {
+              right: 10px;
+            }
+            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow svg,
+            .custom-pdf-container:fullscreen .custom-pdf-side-arrow svg {
+              width: 24px;
+              height: 24px;
+            }
+          }
           .custom-pdf-page-info {
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
@@ -479,10 +550,22 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           controls.appendChild(divider);
           controls.appendChild(fsBtn);
           
+          const leftArrow = document.createElement('button');
+          leftArrow.className = 'custom-pdf-side-arrow left';
+          leftArrow.setAttribute('aria-label', 'Previous Page');
+          leftArrow.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
+          
+          const rightArrow = document.createElement('button');
+          rightArrow.className = 'custom-pdf-side-arrow right';
+          rightArrow.setAttribute('aria-label', 'Next Page');
+          rightArrow.innerHTML = '<svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
+          
           wrapper.appendChild(coverWrapper);
           wrapper.appendChild(canvas1);
           wrapper.appendChild(canvas2);
           wrapper.appendChild(controls);
+          wrapper.appendChild(leftArrow);
+          wrapper.appendChild(rightArrow);
           container.appendChild(wrapper);
 
           let pdfDoc = null, pageNum = 0, pageIsRendering = false, pageNumPending = null;
@@ -573,40 +656,64 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             } catch (e) { pageIsRendering = false; }
           }
           
-          prevBtn.onclick = () => { if (pageNum > 0) { pageNum--; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
-          nextBtn.onclick = () => { if (pageNum < pdfDoc.numPages) { pageNum++; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          const goPrev = () => { if (pageNum > 1) { pageNum--; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          const goNext = () => { if (pageNum < pdfDoc.numPages) { pageNum++; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          
+          prevBtn.onclick = goPrev;
+          nextBtn.onclick = goNext;
+          leftArrow.onclick = goPrev;
+          rightArrow.onclick = goNext;
+          
           const usePseudoFullscreen = window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 1199px)').matches;
           const setPseudoFullscreen = enabled => {
             wrapper.classList.toggle('pseudo-fullscreen', enabled);
             document.body.style.overflow = enabled ? 'hidden' : '';
+            if (enabled) {
+              document.body.appendChild(wrapper);
+            } else {
+              container.appendChild(wrapper);
+            }
             setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
           };
 
-          fsBtn.onclick = () => {
+          fsBtn.onclick = async () => {
             if (document.fullscreenElement || wrapper.classList.contains('pseudo-fullscreen')) {
               if (document.exitFullscreen && document.fullscreenElement) {
                 document.exitFullscreen();
               } else {
                 setPseudoFullscreen(false);
               }
+              if (screen.orientation && screen.orientation.unlock) {
+                try { screen.orientation.unlock(); } catch (e) {}
+              }
             } else if (usePseudoFullscreen) {
               setPseudoFullscreen(true);
             } else {
-              if (wrapper.requestFullscreen) {
-                wrapper.requestFullscreen().catch(() => {
+              try {
+                if (wrapper.requestFullscreen) {
+                  await wrapper.requestFullscreen();
+                } else if (wrapper.webkitRequestFullscreen) {
+                  await wrapper.webkitRequestFullscreen();
+                } else {
                   setPseudoFullscreen(true);
-                });
-              } else if (wrapper.webkitRequestFullscreen) {
-                wrapper.webkitRequestFullscreen();
-              } else {
+                }
+                if (screen.orientation && screen.orientation.lock) {
+                  await screen.orientation.lock('landscape').catch(() => {});
+                }
+              } catch (e) {
                 setPseudoFullscreen(true);
               }
             }
           };
 
           document.addEventListener('keydown', event => {
+            const isFullscreen = document.fullscreenElement === wrapper || wrapper.classList.contains('pseudo-fullscreen');
             if (event.key === 'Escape' && wrapper.classList.contains('pseudo-fullscreen')) {
               setPseudoFullscreen(false);
+            }
+            if (isFullscreen || wrapper.matches(':hover')) {
+              if (event.key === 'ArrowLeft') goPrev();
+              if (event.key === 'ArrowRight') goNext();
             }
           });
 
