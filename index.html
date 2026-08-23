@@ -350,6 +350,20 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             transform: translateX(-50%) translateY(0);
           }
           
+          .custom-pdf-container.pseudo-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            max-width: none !important;
+            margin: 0 !important;
+            z-index: 999999 !important;
+            border-radius: 0 !important;
+            aspect-ratio: auto !important;
+            background: #000 !important;
+          }
+          
           .custom-pdf-nav, .custom-pdf-fullscreen {
             background: transparent;
             border: none;
@@ -553,12 +567,29 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           prevBtn.onclick = () => { if (pageNum > 0) { pageNum--; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
           nextBtn.onclick = () => { if (pageNum < pdfDoc.numPages) { pageNum++; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
           fsBtn.onclick = () => {
-            if (!document.fullscreenElement) {
-              wrapper.requestFullscreen().catch(err => {
-                alert(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
-              });
+            if (document.fullscreenElement || wrapper.classList.contains('pseudo-fullscreen')) {
+              if (document.exitFullscreen && document.fullscreenElement) {
+                document.exitFullscreen();
+              } else {
+                wrapper.classList.remove('pseudo-fullscreen');
+                document.body.style.overflow = '';
+                // Trigger a re-render to fix aspect ratio
+                setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+              }
             } else {
-              document.exitFullscreen();
+              if (wrapper.requestFullscreen) {
+                wrapper.requestFullscreen().catch(() => {
+                  wrapper.classList.add('pseudo-fullscreen');
+                  document.body.style.overflow = 'hidden';
+                  setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+                });
+              } else if (wrapper.webkitRequestFullscreen) {
+                wrapper.webkitRequestFullscreen();
+              } else {
+                wrapper.classList.add('pseudo-fullscreen');
+                document.body.style.overflow = 'hidden';
+                setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+              }
             }
           };
 
