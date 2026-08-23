@@ -315,12 +315,13 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
     <!-- End of bodyEnd -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
-      window.addEventListener('load', function() {
+      (function() {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
         const CSS = `
           a[href$=".pdf"] { display: none !important; }
-          .custom-pdf-container { position: relative; width: 100%; background: #fdfdfd; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; transition: aspect-ratio 0.3s ease; }
+          .custom-pdf-container { position: relative; width: 100%; background: #fdfdfd; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; transition: aspect-ratio 0.3s ease; touch-action: pan-y; }
+          .custom-pdf-fallback { width: min(928px, 90%); margin: 80px auto; }
           .custom-pdf-canvas, .custom-pdf-cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.2s ease-out; }
           .custom-pdf-cover { display: flex; justify-content: center; align-items: center; background: #fff; }
           .custom-pdf-cover img { width: 100%; height: 100%; object-fit: cover; }
@@ -348,6 +349,20 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           .custom-pdf-container:hover .custom-pdf-controls {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
+          }
+          
+          .custom-pdf-container.pseudo-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            max-width: none !important;
+            margin: 0 !important;
+            z-index: 999999 !important;
+            border-radius: 0 !important;
+            aspect-ratio: auto !important;
+            background: #000 !important;
           }
           
           .custom-pdf-nav, .custom-pdf-fullscreen {
@@ -467,7 +482,13 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           let pdfAspectRatio = 1.5; // default fallback
 
           try {
-            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            try {
+              pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            } catch (error) {
+              const fallbackUrl = pdfUrl.replace(/^\/documents\//, '/public/documents/');
+              if (fallbackUrl === pdfUrl) throw error;
+              pdfDoc = await pdfjsLib.getDocument(fallbackUrl).promise;
+            }
             
             // Calculate aspect ratio from the first page immediately so container doesn't jump
             const firstPage = await pdfDoc.getPage(1);
@@ -546,15 +567,76 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           prevBtn.onclick = () => { if (pageNum > 0) { pageNum--; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
           nextBtn.onclick = () => { if (pageNum < pdfDoc.numPages) { pageNum++; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          const usePseudoFullscreen = window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 1199px)').matches;
+          const setPseudoFullscreen = enabled => {
+            wrapper.classList.toggle('pseudo-fullscreen', enabled);
+            document.body.style.overflow = enabled ? 'hidden' : '';
+            setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+          };
+
           fsBtn.onclick = () => {
-            if (!document.fullscreenElement) {
-              wrapper.requestFullscreen().catch(err => {
-                alert(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
-              });
+            if (document.fullscreenElement || wrapper.classList.contains('pseudo-fullscreen')) {
+              if (document.exitFullscreen && document.fullscreenElement) {
+                document.exitFullscreen();
+              } else {
+                setPseudoFullscreen(false);
+              }
+            } else if (usePseudoFullscreen) {
+              setPseudoFullscreen(true);
             } else {
-              document.exitFullscreen();
+              if (wrapper.requestFullscreen) {
+                wrapper.requestFullscreen().catch(() => {
+                  setPseudoFullscreen(true);
+                });
+              } else if (wrapper.webkitRequestFullscreen) {
+                wrapper.webkitRequestFullscreen();
+              } else {
+                setPseudoFullscreen(true);
+              }
             }
           };
+
+          document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && wrapper.classList.contains('pseudo-fullscreen')) {
+              setPseudoFullscreen(false);
+            }
+          });
+
+          let touchStartX = 0;
+          let touchStartY = 0;
+          wrapper.addEventListener('touchstart', event => {
+            if (event.target.closest('button')) return;
+            const touch = event.changedTouches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+          }, { passive: true });
+          wrapper.addEventListener('touchend', event => {
+            if (!pdfDoc || event.target.closest('button')) return;
+            const touch = event.changedTouches[0];
+            const deltaX = touch.clientX - touchStartX;
+            const deltaY = touch.clientY - touchStartY;
+            if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+            if (deltaX < 0 && pageNum < pdfDoc.numPages) {
+              pageNum++;
+              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+            } else if (deltaX > 0 && pageNum > 0) {
+              pageNum--;
+              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+            }
+          }, { passive: true });
+
+          document.addEventListener('keydown', event => {
+            if (!pdfDoc || ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+            if (event.key === 'ArrowLeft' && pageNum > 0) {
+              event.preventDefault();
+              pageNum--;
+              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+            } else if (event.key === 'ArrowRight' && pageNum < pdfDoc.numPages) {
+              event.preventDefault();
+              pageNum++;
+              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+            }
+          });
 
           let resizeTimer;
           window.addEventListener('resize', () => {
@@ -569,30 +651,48 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
         }
 
         function checkAndInject() {
-          const path = window.location.pathname.toLowerCase();
+          const route = new URLSearchParams(window.location.search).get('route');
+          const path = (route || window.location.pathname).toLowerCase();
+          const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          const documentRoot = isLocalhost ? '/documents/' : '/public/documents/';
           let pdfUrl = null;
           
           if (path.includes('zepto')) {
-            pdfUrl = '/documents/NLZeptoGOV.pdf';
+            pdfUrl = `${documentRoot}NLZeptoGOV.pdf`;
           } else if (path.includes('myntra')) {
-            pdfUrl = '/documents/Myntra.pdf';
+            pdfUrl = `${documentRoot}Myntra.pdf`;
           } else if (path.includes('book-my-show') || path.includes('bookmyshow')) {
-            pdfUrl = '/documents/BookMyShow.pdf';
+            pdfUrl = `${documentRoot}BookMyShow.pdf`;
           } else if (path.includes('zomato')) {
-            pdfUrl = '/documents/Zomato.pdf';
+            pdfUrl = `${documentRoot}Zomato.pdf`;
           } else if (path.includes('city-connect') || path.includes('cityconnect')) {
-            pdfUrl = '/documents/CityConnect.pdf';
+            pdfUrl = `${documentRoot}CityConnect.pdf`;
           } else if (path.includes('product-teardown') || path.includes('hyperverge') || path.includes('teardown')) {
-            pdfUrl = '/documents/ProductTeardown.pdf';
+            pdfUrl = `${documentRoot}ProductTeardown.pdf`;
           }
           
           if (pdfUrl) {
-            document.querySelectorAll('a[href$=".pdf"] + div').forEach(c => renderPdfContainer(c, pdfUrl));
+            // Find the huge project cover image container
+            const coverImg = Array.from(document.querySelectorAll('img')).find(img => parseInt(img.getAttribute('width') || '0') > 2000);
+            const containers = coverImg && coverImg.parentElement ? [coverImg.parentElement.parentElement] : [];
+            
+            if (containers.length) {
+              containers.forEach(c => renderPdfContainer(c, pdfUrl));
+            } else if (!document.querySelector('[data-pdf-fallback]')) {
+              const fallback = document.createElement('div');
+              fallback.dataset.pdfFallback = 'true';
+              fallback.className = 'custom-pdf-fallback';
+              
+              // Find the project page content wrapper if possible, otherwise use #main
+              const targetParent = document.querySelector('[data-framer-name="Desktop"], [data-framer-name="Tablet"], [data-framer-name="Phone"]') || document.querySelector('#main') || document.body;
+              targetParent.appendChild(fallback);
+              renderPdfContainer(fallback, pdfUrl);
+            }
           }
         }
-        setTimeout(checkAndInject, 500);
+        checkAndInject();
         new MutationObserver(checkAndInject).observe(document.body, { childList: true, subtree: true });
-      });
+      })();
     </script>
 </body>
 </html>
