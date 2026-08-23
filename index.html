@@ -566,32 +566,40 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           prevBtn.onclick = () => { if (pageNum > 0) { pageNum--; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
           nextBtn.onclick = () => { if (pageNum < pdfDoc.numPages) { pageNum++; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          const usePseudoFullscreen = window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 1199px)').matches;
+          const setPseudoFullscreen = enabled => {
+            wrapper.classList.toggle('pseudo-fullscreen', enabled);
+            document.body.style.overflow = enabled ? 'hidden' : '';
+            setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+          };
+
           fsBtn.onclick = () => {
             if (document.fullscreenElement || wrapper.classList.contains('pseudo-fullscreen')) {
               if (document.exitFullscreen && document.fullscreenElement) {
                 document.exitFullscreen();
               } else {
-                wrapper.classList.remove('pseudo-fullscreen');
-                document.body.style.overflow = '';
-                // Trigger a re-render to fix aspect ratio
-                setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+                setPseudoFullscreen(false);
               }
+            } else if (usePseudoFullscreen) {
+              setPseudoFullscreen(true);
             } else {
               if (wrapper.requestFullscreen) {
                 wrapper.requestFullscreen().catch(() => {
-                  wrapper.classList.add('pseudo-fullscreen');
-                  document.body.style.overflow = 'hidden';
-                  setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+                  setPseudoFullscreen(true);
                 });
               } else if (wrapper.webkitRequestFullscreen) {
                 wrapper.webkitRequestFullscreen();
               } else {
-                wrapper.classList.add('pseudo-fullscreen');
-                document.body.style.overflow = 'hidden';
-                setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+                setPseudoFullscreen(true);
               }
             }
           };
+
+          document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && wrapper.classList.contains('pseudo-fullscreen')) {
+              setPseudoFullscreen(false);
+            }
+          });
 
           document.addEventListener('keydown', event => {
             if (!pdfDoc || ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
