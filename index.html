@@ -562,6 +562,19 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             }
           };
 
+          document.addEventListener('keydown', event => {
+            if (!pdfDoc || ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+            if (event.key === 'ArrowLeft' && pageNum > 0) {
+              event.preventDefault();
+              pageNum--;
+              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+            } else if (event.key === 'ArrowRight' && pageNum < pdfDoc.numPages) {
+              event.preventDefault();
+              pageNum++;
+              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+            }
+          });
+
           let resizeTimer;
           window.addEventListener('resize', () => {
             clearTimeout(resizeTimer);
@@ -576,20 +589,22 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
 
         function checkAndInject() {
           const path = window.location.pathname.toLowerCase();
+          const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          const documentRoot = isLocalhost ? '/documents/' : '/public/documents/';
           let pdfUrl = null;
           
           if (path.includes('zepto')) {
-            pdfUrl = '/public/documents/NLZeptoGOV.pdf';
+            pdfUrl = `${documentRoot}NLZeptoGOV.pdf`;
           } else if (path.includes('myntra')) {
-            pdfUrl = '/public/documents/Myntra.pdf';
+            pdfUrl = `${documentRoot}Myntra.pdf`;
           } else if (path.includes('book-my-show') || path.includes('bookmyshow')) {
-            pdfUrl = '/public/documents/BookMyShow.pdf';
+            pdfUrl = `${documentRoot}BookMyShow.pdf`;
           } else if (path.includes('zomato')) {
-            pdfUrl = '/public/documents/Zomato.pdf';
+            pdfUrl = `${documentRoot}Zomato.pdf`;
           } else if (path.includes('city-connect') || path.includes('cityconnect')) {
-            pdfUrl = '/public/documents/CityConnect.pdf';
+            pdfUrl = `${documentRoot}CityConnect.pdf`;
           } else if (path.includes('product-teardown') || path.includes('hyperverge') || path.includes('teardown')) {
-            pdfUrl = '/public/documents/ProductTeardown.pdf';
+            pdfUrl = `${documentRoot}ProductTeardown.pdf`;
           }
           
           if (pdfUrl) {
