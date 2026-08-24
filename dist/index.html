@@ -455,15 +455,15 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            background: rgba(20, 20, 20, 0.4);
+            background: rgba(20, 20, 20, 0.5);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             display: flex;
             justify-content: center;
             align-items: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             cursor: pointer;
-            z-index: 20;
+            z-index: 30;
             opacity: 0;
             transition: all 0.3s ease;
             color: #fff;
@@ -472,7 +472,15 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             opacity: 1;
           }
           .custom-pdf-side-arrow:hover {
-            background: rgba(20, 20, 20, 0.7);
+            background: rgba(20, 20, 20, 0.8);
+            transform: translateY(-50%) scale(1.08);
+          }
+          .custom-pdf-side-arrow:active {
+            transform: translateY(-50%) scale(0.95);
+          }
+          .custom-pdf-side-arrow.disabled {
+            opacity: 0.15 !important;
+            pointer-events: none !important;
           }
           .custom-pdf-side-arrow svg {
             width: 24px;
@@ -484,15 +492,32 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow,
           .custom-pdf-container:fullscreen .custom-pdf-side-arrow {
-            opacity: 1;
-            width: 64px;
-            height: 64px;
-            background: rgba(20, 20, 20, 0.6);
+            opacity: 1 !important;
+            width: 54px;
+            height: 54px;
+            background: rgba(20, 20, 20, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
           }
           .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow svg,
           .custom-pdf-container:fullscreen .custom-pdf-side-arrow svg {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
+          }
+          
+          .custom-pdf-container.is-rotated .custom-pdf-side-arrow.left {
+            top: 24px !important;
+            left: 50% !important;
+            bottom: auto !important;
+            right: auto !important;
+            transform: translateX(-50%) rotate(90deg) !important;
+          }
+          .custom-pdf-container.is-rotated .custom-pdf-side-arrow.right {
+            top: auto !important;
+            bottom: 85px !important;
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) rotate(90deg) !important;
           }
           
           @media (max-width: 768px) {
@@ -501,22 +526,22 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             }
             .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow,
             .custom-pdf-container:fullscreen .custom-pdf-side-arrow {
-              width: 48px;
-              height: 48px;
-              opacity: 0.8;
+              width: 44px;
+              height: 44px;
+              opacity: 0.9 !important;
             }
             .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow.left,
             .custom-pdf-container:fullscreen .custom-pdf-side-arrow.left {
-              left: 10px;
+              left: 12px;
             }
             .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow.right,
             .custom-pdf-container:fullscreen .custom-pdf-side-arrow.right {
-              right: 10px;
+              right: 12px;
             }
             .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow svg,
             .custom-pdf-container:fullscreen .custom-pdf-side-arrow svg {
-              width: 24px;
-              height: 24px;
+              width: 22px;
+              height: 22px;
             }
           }
           .custom-pdf-page-info {
@@ -658,8 +683,12 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           } catch (e) { console.error(e); }
 
           function updateButtons() {
-            prevBtn.classList.toggle('disabled', pageNum <= 0);
-            nextBtn.classList.toggle('disabled', !pdfDoc || pageNum >= pdfDoc.numPages);
+            const isAtStart = pageNum <= 0;
+            const isAtEnd = !pdfDoc || pageNum >= pdfDoc.numPages;
+            prevBtn.classList.toggle('disabled', isAtStart);
+            leftArrow.classList.toggle('disabled', isAtStart);
+            nextBtn.classList.toggle('disabled', isAtEnd);
+            rightArrow.classList.toggle('disabled', isAtEnd);
             if (pageNum === 0) {
                pageInfo.textContent = `Cover / ${pdfDoc ? pdfDoc.numPages : '-'}`;
             } else {
@@ -741,8 +770,18 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             } catch (e) { pageIsRendering = false; }
           }
           
-          const goPrev = () => { if (pageNum > 1) { pageNum--; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
-          const goNext = () => { if (pageNum < pdfDoc.numPages) { pageNum++; pageIsRendering ? pageNumPending = pageNum : renderCurrentState(); } };
+          const goPrev = () => {
+            if (pageNum > 0) {
+              pageNum--;
+              pageIsRendering ? (pageNumPending = pageNum) : renderCurrentState();
+            }
+          };
+          const goNext = () => {
+            if (pdfDoc && pageNum < pdfDoc.numPages) {
+              pageNum++;
+              pageIsRendering ? (pageNumPending = pageNum) : renderCurrentState();
+            }
+          };
           
           prevBtn.onclick = goPrev;
           nextBtn.onclick = goNext;
@@ -760,6 +799,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
               if (isRotated) toggleRotate(false);
             }
             setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
+            setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 200);
           };
 
           const toggleRotate = (forceValue) => {
@@ -841,28 +881,59 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
 
           let touchStartX = 0;
           let touchStartY = 0;
+          let touchStartTime = 0;
           wrapper.addEventListener('touchstart', event => {
             if (event.target.closest('button')) return;
             const touch = event.changedTouches[0];
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
+            touchStartTime = Date.now();
           }, { passive: true });
+
           wrapper.addEventListener('touchend', event => {
             if (!pdfDoc || event.target.closest('button')) return;
             const touch = event.changedTouches[0];
             const deltaX = touch.clientX - touchStartX;
             const deltaY = touch.clientY - touchStartY;
+            const deltaTime = Date.now() - touchStartTime;
             const isRotatedView = wrapper.classList.contains('is-rotated');
-            const primaryDelta = isRotatedView ? -deltaY : deltaX;
-            const secondaryDelta = isRotatedView ? deltaX : deltaY;
-            if (Math.abs(primaryDelta) < 40 || Math.abs(primaryDelta) <= Math.abs(secondaryDelta)) return;
-            if (primaryDelta < 0 && pageNum < pdfDoc.numPages) {
-              pageNum++;
-              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
-            } else if (primaryDelta > 0 && pageNum > 0) {
-              pageNum--;
-              pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
+            
+            // Check for tap on left or right third of the screen to quickly navigate
+            if (Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12 && deltaTime < 350) {
+              const rect = wrapper.getBoundingClientRect();
+              if (isRotatedView) {
+                const relY = touch.clientY - rect.top;
+                if (relY < rect.height * 0.35) goPrev();
+                else if (relY > rect.height * 0.65) goNext();
+              } else {
+                const relX = touch.clientX - rect.left;
+                if (relX < rect.width * 0.35) goPrev();
+                else if (relX > rect.width * 0.65) goNext();
+              }
+              return;
             }
+
+            // Swipe gestures with forgiving threshold
+            let swipeForward = false;
+            let swipeBackward = false;
+
+            if (isRotatedView) {
+              if (Math.abs(deltaY) >= 25 && Math.abs(deltaY) >= Math.abs(deltaX)) {
+                if (deltaY < 0) swipeForward = true;
+                else swipeBackward = true;
+              } else if (Math.abs(deltaX) >= 25) {
+                if (deltaX < 0) swipeForward = true;
+                else swipeBackward = true;
+              }
+            } else {
+              if (Math.abs(deltaX) >= 25 && Math.abs(deltaX) >= Math.abs(deltaY)) {
+                if (deltaX < 0) swipeForward = true;
+                else swipeBackward = true;
+              }
+            }
+
+            if (swipeForward) goNext();
+            else if (swipeBackward) goPrev();
           }, { passive: true });
 
           document.addEventListener('keydown', event => {
