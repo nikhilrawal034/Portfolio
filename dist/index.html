@@ -6,45 +6,36 @@
 	<meta charset="utf-8">
 	<script>
 		(function() {
-			if (window.__deepLinkInitialized) return;
-			window.__deepLinkInitialized = true;
-
 			var params = new URLSearchParams(window.location.search);
 			var route = params.get('route');
-			if (route) {
-				var cleanRoute = decodeURIComponent(route).split('?')[0].replace(/\/+$/, '');
-				var slug = cleanRoute.split('/').pop().toLowerCase();
+			if (!route) return;
 
-				// Clean the URL bar immediately so subsequent reloads don't re-trigger loops
-				if (window.history && window.history.replaceState) {
-					window.history.replaceState(null, '', cleanRoute);
-				}
+			var cleanRoute = decodeURIComponent(route).split('?')[0].replace(/\/+$/, '');
+			var slug = cleanRoute.split('/').pop().toLowerCase();
 
-				var attempts = 0;
-				function triggerNavigation() {
-					if (window.__navDone) return;
-					attempts++;
-					var links = Array.from(document.querySelectorAll('a[href]'));
-					var link = links.find(function(a) {
-						var href = (a.getAttribute('href') || '').toLowerCase();
-						return href === cleanRoute.toLowerCase() || 
-							   href === '.' + cleanRoute.toLowerCase() || 
-							   href === './projects/' + slug || 
-							   href === '/projects/' + slug;
-					});
-					if (link) {
-						window.__navDone = true;
-						link.click();
-					} else if (attempts < 25) {
-						setTimeout(triggerNavigation, 100);
-					}
-				}
+			var attempts = 0;
+			function attemptNavigation() {
+				attempts++;
+				var links = Array.from(document.querySelectorAll('a[href]'));
+				var link = links.find(function(a) {
+					var href = (a.getAttribute('href') || '').toLowerCase();
+					return href === cleanRoute.toLowerCase() || 
+						   href === '.' + cleanRoute.toLowerCase() || 
+						   href === './projects/' + slug || 
+						   href === '/projects/' + slug;
+				});
 
-				if (document.readyState === 'loading') {
-					document.addEventListener('DOMContentLoaded', triggerNavigation);
-				} else {
-					setTimeout(triggerNavigation, 50);
+				if (link) {
+					link.click();
+				} else if (attempts < 30) {
+					setTimeout(attemptNavigation, 100);
 				}
+			}
+
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', attemptNavigation);
+			} else {
+				setTimeout(attemptNavigation, 50);
 			}
 		})();
 	</script>
@@ -1061,11 +1052,25 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           });
         }
 
+        function isActualProjectPage() {
+          const path = window.location.pathname.toLowerCase();
+          const route = (new URLSearchParams(window.location.search).get('route') || '').toLowerCase();
+          const currentPath = route || path;
+
+          if (!currentPath.includes('/projects/')) return false;
+
+          // If homepage elements or multiple project links are present, we are still on the homepage
+          const hasHero = !!document.querySelector('[data-framer-name="Intro"]') || !!document.querySelector('[data-framer-name="Name"]');
+          const projectLinks = document.querySelectorAll('a[href*="/projects/"], a[href*="./projects/"]');
+          if (hasHero && projectLinks.length > 1) {
+            return false;
+          }
+
+          return true;
+        }
+
         function checkAndInject() {
-          const route = new URLSearchParams(window.location.search).get('route');
-          const path = (route || window.location.pathname).toLowerCase();
-          
-          if (!path.includes('/projects/')) {
+          if (!isActualProjectPage()) {
             document.querySelectorAll('.custom-pdf-container, .custom-pdf-fallback').forEach(el => el.remove());
             document.querySelectorAll('[data-pdf-rendered], [data-pdf-injected]').forEach(el => {
               delete el.dataset.pdfRendered;
@@ -1073,6 +1078,9 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             });
             return;
           }
+
+          const route = new URLSearchParams(window.location.search).get('route');
+          const path = (route || window.location.pathname).toLowerCase();
 
           const documentRoot = '/documents/';
           let pdfUrl = null;
@@ -1093,7 +1101,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           if (!pdfUrl) return;
 
-          // Find ALL project presentation cover image containers across all breakpoints (Desktop, Tablet, Mobile)
+          // Find the project presentation cover image container (only on the project page)
           const allImgs = Array.from(document.querySelectorAll('img'));
           const coverImgs = allImgs.filter(img => {
             if (img.closest('.custom-pdf-container')) return false;
