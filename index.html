@@ -578,6 +578,81 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
               min-width: 50px;
             }
           }
+          /* Mobile Swipe Hint */
+          .custom-pdf-swipe-hint {
+            display: none;
+          }
+          @media (max-width: 1024px), (pointer: coarse) {
+            .custom-pdf-swipe-hint {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              background: rgba(18, 18, 18, 0.88);
+              backdrop-filter: blur(14px);
+              -webkit-backdrop-filter: blur(14px);
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              padding: 10px 18px;
+              border-radius: 100px;
+              color: #ffffff;
+              font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'DM Sans', sans-serif;
+              font-size: 13px;
+              font-weight: 500;
+              letter-spacing: 0.02em;
+              box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+              z-index: 40;
+              pointer-events: none;
+              white-space: nowrap;
+              user-select: none;
+              animation: pdfSwipeHintFade 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              transition: opacity 0.4s ease, visibility 0.4s ease;
+            }
+            .custom-pdf-swipe-hint.dismissed {
+              opacity: 0 !important;
+              visibility: hidden !important;
+              animation: none !important;
+            }
+            .custom-pdf-swipe-hand {
+              width: 18px;
+              height: 18px;
+              fill: var(--token-e3342d20-df05-4fdf-b8ee-7cbcc8525edc, #e0f11f);
+              animation: pdfSwipeHand 1.6s ease-in-out infinite;
+            }
+            .custom-pdf-swipe-arrow {
+              width: 14px;
+              height: 14px;
+              fill: rgba(255, 255, 255, 0.7);
+            }
+            .custom-pdf-swipe-arrow.left {
+              animation: pdfSwipeArrowLeft 1.6s ease-in-out infinite;
+            }
+            .custom-pdf-swipe-arrow.right {
+              animation: pdfSwipeArrowRight 1.6s ease-in-out infinite;
+            }
+          }
+          
+          @keyframes pdfSwipeHintFade {
+            0% { opacity: 0; transform: translate(-50%, -30%) scale(0.92); }
+            12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            75% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -65%) scale(0.92); visibility: hidden; }
+          }
+          @keyframes pdfSwipeHand {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+          }
+          @keyframes pdfSwipeArrowLeft {
+            0%, 100% { transform: translateX(0); opacity: 0.4; }
+            50% { transform: translateX(-4px); opacity: 1; }
+          }
+          @keyframes pdfSwipeArrowRight {
+            0%, 100% { transform: translateX(0); opacity: 0.4; }
+            50% { transform: translateX(4px); opacity: 1; }
+          }
         `;
         const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
 
@@ -645,18 +720,24 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           leftArrow.setAttribute('aria-label', 'Previous Page');
           leftArrow.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
           
-          const rightArrow = document.createElement('button');
-          rightArrow.className = 'custom-pdf-side-arrow right';
-          rightArrow.setAttribute('aria-label', 'Next Page');
-          rightArrow.innerHTML = '<svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
-          
+          const swipeHint = document.createElement('div');
+          swipeHint.className = 'custom-pdf-swipe-hint';
+          swipeHint.innerHTML = '<svg class="custom-pdf-swipe-arrow left" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg><svg class="custom-pdf-swipe-hand" viewBox="0 0 24 24"><path d="M9 11.24V7.5a2.5 2.5 0 0 1 5 0v3.74c1.21-.81 2-2.18 2-3.74a4.5 4.5 0 0 0-9 0c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26a1.5 1.5 0 0 0-1.3-.04V7.5a1 1 0 0 0-2 0v7.62l-3.1-1.55a1.5 1.5 0 0 0-2.01.67l-.74 1.47 5.72 5.72c.56.57 1.33.89 2.13.89h4.5c1.47 0 2.71-1.06 2.94-2.52l.6-3.88a1.5 1.5 0 0 0-2.2-1.65z"/></svg><span>Swipe left / right</span><svg class="custom-pdf-swipe-arrow right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
+
           wrapper.appendChild(coverWrapper);
           wrapper.appendChild(canvas1);
           wrapper.appendChild(canvas2);
           wrapper.appendChild(controls);
           wrapper.appendChild(leftArrow);
           wrapper.appendChild(rightArrow);
+          wrapper.appendChild(swipeHint);
           container.appendChild(wrapper);
+
+          const dismissSwipeHint = () => {
+            if (swipeHint && !swipeHint.classList.contains('dismissed')) {
+              swipeHint.classList.add('dismissed');
+            }
+          };
 
           let pdfDoc = null, pageNum = 0, pageIsRendering = false, pageNumPending = null;
           let pdfAspectRatio = 1.5; // default fallback
@@ -770,12 +851,14 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           }
           
           const goPrev = () => {
+            dismissSwipeHint();
             if (pageNum > 0) {
               pageNum--;
               pageIsRendering ? (pageNumPending = pageNum) : renderCurrentState();
             }
           };
           const goNext = () => {
+            dismissSwipeHint();
             if (pdfDoc && pageNum < pdfDoc.numPages) {
               pageNum++;
               pageIsRendering ? (pageNumPending = pageNum) : renderCurrentState();
@@ -789,6 +872,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           const usePseudoFullscreen = window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 1199px)').matches;
           const setPseudoFullscreen = enabled => {
+            dismissSwipeHint();
             wrapper.classList.toggle('pseudo-fullscreen', enabled);
             document.body.style.overflow = enabled ? 'hidden' : '';
             if (enabled) {
@@ -802,6 +886,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           };
 
           const toggleRotate = (forceValue) => {
+            dismissSwipeHint();
             isRotated = typeof forceValue === 'boolean' ? forceValue : !isRotated;
             wrapper.classList.toggle('is-rotated', isRotated);
             rotateBtn.classList.toggle('active', isRotated);
@@ -831,6 +916,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           rotateBtn.onclick = () => toggleRotate();
 
           fsBtn.onclick = async () => {
+            dismissSwipeHint();
             if (document.fullscreenElement || wrapper.classList.contains('pseudo-fullscreen')) {
               if (isRotated) toggleRotate(false);
               if (document.exitFullscreen && document.fullscreenElement) {
@@ -882,6 +968,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           let touchStartY = 0;
           let touchStartTime = 0;
           wrapper.addEventListener('touchstart', event => {
+            dismissSwipeHint();
             if (event.target.closest('button')) return;
             const touch = event.changedTouches[0];
             touchStartX = touch.clientX;
