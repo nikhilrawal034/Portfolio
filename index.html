@@ -351,10 +351,19 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           a[href$=".pdf"] { display: none !important; }
           .custom-pdf-container { position: relative; width: 100%; height: 100%; background: #fdfdfd; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; touch-action: pan-y; }
           .custom-pdf-fallback { width: min(928px, 90%); margin: 80px auto; }
-          .custom-pdf-canvas, .custom-pdf-cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: opacity 0.2s ease-out; }
-          .custom-pdf-cover { display: flex; justify-content: center; align-items: center; background: #fff; }
+          .custom-pdf-canvas, .custom-pdf-cover { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: opacity 0.2s ease-out, transform 0.3s ease; }
+          .custom-pdf-cover { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: #fff; }
           .custom-pdf-cover img { width: 100%; height: 100%; object-fit: cover; }
           .custom-pdf-canvas { object-fit: contain; }
+          
+          .custom-pdf-container.is-rotated .custom-pdf-canvas {
+            transform: translate(-50%, -50%) rotate(90deg);
+          }
+          .custom-pdf-container.is-rotated .custom-pdf-cover {
+            transform: translate(-50%, -50%) rotate(90deg);
+            width: 100vh !important;
+            height: 100vw !important;
+          }
           
           .custom-pdf-controls {
             position: absolute;
@@ -394,7 +403,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             background: #000 !important;
           }
           
-          .custom-pdf-nav, .custom-pdf-fullscreen {
+          .custom-pdf-nav, .custom-pdf-fullscreen, .custom-pdf-rotate {
             background: transparent;
             border: none;
             cursor: pointer;
@@ -404,20 +413,36 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            transition: background 0.2s ease;
+            transition: background 0.2s ease, transform 0.2s ease;
             padding: 0;
           }
-          .custom-pdf-nav:hover, .custom-pdf-fullscreen:hover {
+          .custom-pdf-nav:hover, .custom-pdf-fullscreen:hover, .custom-pdf-rotate:hover {
             background: rgba(255, 255, 255, 0.15);
           }
-          .custom-pdf-nav:active, .custom-pdf-fullscreen:active {
+          .custom-pdf-nav:active, .custom-pdf-fullscreen:active, .custom-pdf-rotate:active {
             background: rgba(255, 255, 255, 0.25);
+          }
+          .custom-pdf-rotate.active {
+            background: rgba(255, 255, 255, 0.3);
+          }
+          .custom-pdf-rotate {
+            display: none;
+          }
+          .custom-pdf-container.pseudo-fullscreen .custom-pdf-rotate,
+          .custom-pdf-container:fullscreen .custom-pdf-rotate,
+          .custom-pdf-container:-webkit-full-screen .custom-pdf-rotate {
+            display: flex;
+          }
+          @media (max-width: 1024px) {
+            .custom-pdf-rotate {
+              display: flex;
+            }
           }
           .custom-pdf-nav.disabled {
             opacity: 0.3;
             pointer-events: none;
           }
-          .custom-pdf-nav svg, .custom-pdf-fullscreen svg {
+          .custom-pdf-nav svg, .custom-pdf-fullscreen svg, .custom-pdf-rotate svg {
             width: 20px;
             height: 20px;
             fill: #fff;
@@ -572,12 +597,22 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           const nextBtn = document.createElement('button'); nextBtn.className = 'custom-pdf-nav next'; nextBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>';
           
           const divider = document.createElement('div'); divider.className = 'custom-pdf-divider';
+          const divider2 = document.createElement('div'); divider2.className = 'custom-pdf-divider';
+          
+          const rotateBtn = document.createElement('button');
+          rotateBtn.className = 'custom-pdf-rotate';
+          rotateBtn.setAttribute('title', 'Rotate Orientation');
+          rotateBtn.setAttribute('aria-label', 'Rotate Orientation');
+          rotateBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.55 5.55L11 1v3.07C6.83 4.56 3.55 7.99 3.08 12.14l2.01.23c.39-3.41 3.08-6.1 6.5-6.52V9l4.55-4.55zM19.92 11.86l-2.01-.23c-.39 3.41-3.08 6.1-6.5 6.52V15l-4.55 4.55L11.41 24v-3.07c4.17-.49 7.45-3.92 7.92-8.07z"/></svg>';
+
           const fsBtn = document.createElement('button'); fsBtn.className = 'custom-pdf-fullscreen'; fsBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>';
 
           controls.appendChild(prevBtn);
           controls.appendChild(pageInfo);
           controls.appendChild(nextBtn);
           controls.appendChild(divider);
+          controls.appendChild(rotateBtn);
+          controls.appendChild(divider2);
           controls.appendChild(fsBtn);
           
           const leftArrow = document.createElement('button');
@@ -600,6 +635,7 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
 
           let pdfDoc = null, pageNum = 0, pageIsRendering = false, pageNumPending = null;
           let pdfAspectRatio = 1.5; // default fallback
+          let isRotated = false;
 
           try {
             try {
@@ -650,14 +686,32 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             pageIsRendering = true;
             try {
               const page = await pdfDoc.getPage(pageNum);
-              const containerWidth = wrapper.clientWidth || 800;
-              const scale = containerWidth / page.getViewport({ scale: 1.0 }).width;
+              const isRotatedView = wrapper.classList.contains('is-rotated');
+              let containerWidth = wrapper.clientWidth || window.innerWidth || 800;
+              let containerHeight = wrapper.clientHeight || window.innerHeight || 600;
+
+              let targetWidth = containerWidth;
+              let targetHeight = containerHeight;
+
+              if (isRotatedView) {
+                targetWidth = containerHeight;
+                targetHeight = containerWidth;
+              }
+
+              const unscaledViewport = page.getViewport({ scale: 1.0 });
+              let scale = targetWidth / unscaledViewport.width;
+              if (unscaledViewport.height * scale > targetHeight && targetHeight > 50) {
+                scale = targetHeight / unscaledViewport.height;
+              }
+
               const viewport = page.getViewport({ scale });
               
               const dpr = window.devicePixelRatio || 1;
               const ctx = inactiveCanvas.getContext('2d');
               inactiveCanvas.width = viewport.width * dpr;
               inactiveCanvas.height = viewport.height * dpr;
+              inactiveCanvas.style.width = `${viewport.width}px`;
+              inactiveCanvas.style.height = `${viewport.height}px`;
               ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
               await page.render({ canvasContext: ctx, viewport }).promise;
@@ -702,12 +756,43 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
               document.body.appendChild(wrapper);
             } else {
               container.appendChild(wrapper);
+              if (isRotated) toggleRotate(false);
             }
             setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 50);
           };
 
+          const toggleRotate = (forceValue) => {
+            isRotated = typeof forceValue === 'boolean' ? forceValue : !isRotated;
+            wrapper.classList.toggle('is-rotated', isRotated);
+            rotateBtn.classList.toggle('active', isRotated);
+            
+            // If user clicks rotate while not in fullscreen, automatically open full screen
+            if (isRotated && !document.fullscreenElement && !wrapper.classList.contains('pseudo-fullscreen')) {
+              if (usePseudoFullscreen) {
+                setPseudoFullscreen(true);
+              } else {
+                try {
+                  if (wrapper.requestFullscreen) wrapper.requestFullscreen().catch(() => setPseudoFullscreen(true));
+                  else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen().catch(() => setPseudoFullscreen(true));
+                  else setPseudoFullscreen(true);
+                } catch (e) {
+                  setPseudoFullscreen(true);
+                }
+              }
+            }
+
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock(isRotated ? 'landscape' : 'portrait').catch(() => {});
+            }
+
+            setTimeout(() => { if (pdfDoc) renderCurrentState(); }, 60);
+          };
+
+          rotateBtn.onclick = () => toggleRotate();
+
           fsBtn.onclick = async () => {
             if (document.fullscreenElement || wrapper.classList.contains('pseudo-fullscreen')) {
+              if (isRotated) toggleRotate(false);
               if (document.exitFullscreen && document.fullscreenElement) {
                 document.exitFullscreen();
               } else {
@@ -736,6 +821,12 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             }
           };
 
+          document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && !wrapper.classList.contains('pseudo-fullscreen') && isRotated) {
+              toggleRotate(false);
+            }
+          });
+
           document.addEventListener('keydown', event => {
             const isFullscreen = document.fullscreenElement === wrapper || wrapper.classList.contains('pseudo-fullscreen');
             if (event.key === 'Escape' && wrapper.classList.contains('pseudo-fullscreen')) {
@@ -760,11 +851,14 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             const touch = event.changedTouches[0];
             const deltaX = touch.clientX - touchStartX;
             const deltaY = touch.clientY - touchStartY;
-            if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
-            if (deltaX < 0 && pageNum < pdfDoc.numPages) {
+            const isRotatedView = wrapper.classList.contains('is-rotated');
+            const primaryDelta = isRotatedView ? -deltaY : deltaX;
+            const secondaryDelta = isRotatedView ? deltaX : deltaY;
+            if (Math.abs(primaryDelta) < 40 || Math.abs(primaryDelta) <= Math.abs(secondaryDelta)) return;
+            if (primaryDelta < 0 && pageNum < pdfDoc.numPages) {
               pageNum++;
               pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
-            } else if (deltaX > 0 && pageNum > 0) {
+            } else if (primaryDelta > 0 && pageNum > 0) {
               pageNum--;
               pageIsRendering ? pageNumPending = pageNum : renderCurrentState();
             }
