@@ -715,6 +715,11 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           leftArrow.setAttribute('aria-label', 'Previous Page');
           leftArrow.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
           
+          const rightArrow = document.createElement('button');
+          rightArrow.className = 'custom-pdf-side-arrow right';
+          rightArrow.setAttribute('aria-label', 'Next Page');
+          rightArrow.innerHTML = '<svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
+          
           const swipeHint = document.createElement('div');
           swipeHint.className = 'custom-pdf-swipe-hint';
           swipeHint.innerHTML = '<svg class="custom-pdf-swipe-arrow left" viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg><svg class="custom-pdf-swipe-hand" viewBox="0 0 24 24"><path d="M9 11.24V7.5a2.5 2.5 0 0 1 5 0v3.74c1.21-.81 2-2.18 2-3.74a4.5 4.5 0 0 0-9 0c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26a1.5 1.5 0 0 0-1.3-.04V7.5a1 1 0 0 0-2 0v7.62l-3.1-1.55a1.5 1.5 0 0 0-2.01.67l-.74 1.47 5.72 5.72c.56.57 1.33.89 2.13.89h4.5c1.47 0 2.71-1.06 2.94-2.52l.6-3.88a1.5 1.5 0 0 0-2.2-1.65z"/></svg><span>Swipe left / right</span><svg class="custom-pdf-swipe-arrow right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>';
