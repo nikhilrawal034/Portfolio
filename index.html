@@ -519,28 +519,38 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             transform: translateX(-50%) rotate(90deg) !important;
           }
           
-          @media (max-width: 768px) {
-            .custom-pdf-side-arrow:not(.pseudo-fullscreen .custom-pdf-side-arrow):not(:fullscreen .custom-pdf-side-arrow) {
-              display: none;
-            }
-            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow,
-            .custom-pdf-container:fullscreen .custom-pdf-side-arrow {
+          @media (max-width: 1024px), (pointer: coarse) {
+            .custom-pdf-side-arrow {
+              opacity: 0.9 !important;
               width: 44px;
               height: 44px;
-              opacity: 0.9 !important;
+              background: rgba(20, 20, 20, 0.65) !important;
+              backdrop-filter: blur(10px);
+              -webkit-backdrop-filter: blur(10px);
             }
-            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow.left,
-            .custom-pdf-container:fullscreen .custom-pdf-side-arrow.left {
-              left: 12px;
+            .custom-pdf-side-arrow.left {
+              left: 10px;
             }
-            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow.right,
-            .custom-pdf-container:fullscreen .custom-pdf-side-arrow.right {
-              right: 12px;
+            .custom-pdf-side-arrow.right {
+              right: 10px;
             }
-            .custom-pdf-container.pseudo-fullscreen .custom-pdf-side-arrow svg,
-            .custom-pdf-container:fullscreen .custom-pdf-side-arrow svg {
+            .custom-pdf-side-arrow svg {
               width: 22px;
               height: 22px;
+            }
+            .custom-pdf-controls {
+              opacity: 1 !important;
+              transform: translateX(-50%) translateY(0) !important;
+              bottom: 14px !important;
+              padding: 4px 8px !important;
+            }
+            .custom-pdf-nav, .custom-pdf-fullscreen, .custom-pdf-rotate {
+              width: 32px;
+              height: 32px;
+            }
+            .custom-pdf-page-info {
+              font-size: 13px;
+              min-width: 50px;
             }
           }
           .custom-pdf-page-info {
@@ -559,24 +569,6 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             height: 20px;
             background: rgba(255, 255, 255, 0.2);
             margin: 0 4px;
-          }
-          
-          /* Responsive adjustments */
-          @media (max-width: 768px), (hover: none) {
-            .custom-pdf-controls {
-              opacity: 1;
-              transform: translateX(-50%) translateY(0);
-              bottom: 16px;
-              padding: 4px 8px;
-            }
-            .custom-pdf-nav, .custom-pdf-fullscreen {
-              width: 32px;
-              height: 32px;
-            }
-            .custom-pdf-page-info {
-              font-size: 13px;
-              min-width: 50px;
-            }
           }
           /* Mobile Swipe Hint */
           .custom-pdf-swipe-hint {
@@ -1070,34 +1062,34 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           }
           
           if (pdfUrl) {
-            // Find the huge project cover image container, strictly excluding hero/name avatar
-            const coverImg = Array.from(document.querySelectorAll('img')).find(img => 
-              parseInt(img.getAttribute('width') || '0') > 2000 && 
-              !img.closest('.custom-pdf-container') &&
-              !img.closest('[data-framer-name="Name"]') &&
-              !img.closest('[data-framer-name="Intro"]')
-            );
-            const containers = coverImg && coverImg.parentElement ? [coverImg.parentElement.parentElement] : [];
-            
-            if (containers.length) {
-              containers.forEach(c => {
-                if (!c.dataset.pdfRendered) {
-                  c.dataset.pdfRendered = 'true';
-                  renderPdfContainer(c, pdfUrl);
-                }
-              });
-            } else if (!document.querySelector('[data-pdf-fallback]')) {
-              // Only inject fallback if we are confirmed to be on a project page (not homepage)
-              const isProjectPage = !!document.querySelector('a[href$=".pdf"]') || window.location.pathname.toLowerCase().includes('/projects/');
-              if (isProjectPage) {
-                const fallback = document.createElement('div');
-                fallback.dataset.pdfFallback = 'true';
-                fallback.className = 'custom-pdf-fallback';
-                
-                const targetParent = document.querySelector('[data-framer-name="Desktop"], [data-framer-name="Tablet"], [data-framer-name="Phone"]') || document.querySelector('#main') || document.body;
-                targetParent.appendChild(fallback);
-                renderPdfContainer(fallback, pdfUrl);
+            // Find the project presentation cover image container, strictly excluding hero/name avatar
+            const allImgs = Array.from(document.querySelectorAll('img'));
+            const coverImg = allImgs.find(img => {
+              if (img.closest('.custom-pdf-container')) return false;
+              if (img.closest('[data-framer-name="Name"]') || img.closest('[data-framer-name="Intro"]')) return false;
+              if (img.closest('header') || img.closest('nav')) return false;
+              const src = (img.src || img.getAttribute('src') || '').toLowerCase();
+              const w = img.naturalWidth || img.clientWidth || parseInt(img.getAttribute('width') || '0');
+              const h = img.naturalHeight || img.clientHeight || parseInt(img.getAttribute('height') || '0');
+              // Exclude small icon images
+              if (w > 0 && w < 120 && h > 0 && h < 120) return false;
+              return src.includes('framerusercontent.com/images/') || w > 250;
+            });
+
+            if (coverImg && coverImg.parentElement) {
+              const targetContainer = coverImg.parentElement.parentElement || coverImg.parentElement;
+              if (targetContainer && !targetContainer.dataset.pdfRendered) {
+                targetContainer.dataset.pdfRendered = 'true';
+                renderPdfContainer(targetContainer, pdfUrl);
               }
+            } else if (!document.querySelector('[data-pdf-fallback]') && !document.querySelector('.custom-pdf-container')) {
+              const fallback = document.createElement('div');
+              fallback.dataset.pdfFallback = 'true';
+              fallback.className = 'custom-pdf-fallback';
+              
+              const targetParent = document.querySelector('[data-framer-name="Phone"], [data-framer-name="Tablet"], [data-framer-name="Desktop"]') || document.querySelector('#main') || document.body;
+              targetParent.appendChild(fallback);
+              renderPdfContainer(fallback, pdfUrl);
             }
           }
         }
