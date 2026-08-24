@@ -4,6 +4,36 @@
 <html lang="en" data-redirect-timezone="1">
 <head>
 	<meta charset="utf-8">
+	<script>
+		(function() {
+			var params = new URLSearchParams(window.location.search);
+			var route = params.get('route');
+			if (route) {
+				var cleanRoute = decodeURIComponent(route);
+				var targetPath = cleanRoute.split('?')[0].replace(/\/+$/, '');
+				var slug = targetPath.split('/').pop();
+
+				function triggerNavigation() {
+					var links = Array.from(document.querySelectorAll('a[href]'));
+					var link = links.find(function(a) {
+						var href = a.getAttribute('href') || '';
+						return href === targetPath || href === '.' + targetPath || href === './projects/' + slug || href.endsWith('/' + slug);
+					});
+					if (link) {
+						link.click();
+					}
+				}
+
+				if (document.readyState === 'complete') {
+					setTimeout(triggerNavigation, 300);
+				} else {
+					window.addEventListener('load', function() {
+						setTimeout(triggerNavigation, 300);
+					});
+				}
+			}
+		})();
+	</script>
 	<meta name="viewport" content="width=device-width">
 	<title>Nikhil's Portfolio - Product </title>
     <meta name="description" content="Discover my work across Product Management, UX Design, and Business Analysis.
@@ -768,8 +798,9 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
         function checkAndInject() {
           const route = new URLSearchParams(window.location.search).get('route');
           const path = (route || window.location.pathname).toLowerCase();
-          const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-          const documentRoot = isLocalhost ? '/documents/' : '/public/documents/';
+          if (!path.includes('/projects/')) return;
+
+          const documentRoot = '/documents/';
           let pdfUrl = null;
           
           if (path.includes('zepto')) {
@@ -787,8 +818,13 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           }
           
           if (pdfUrl) {
-            // Find the huge project cover image container
-            const coverImg = Array.from(document.querySelectorAll('img')).find(img => parseInt(img.getAttribute('width') || '0') > 2000 && !img.closest('.custom-pdf-container'));
+            // Find the huge project cover image container, strictly excluding hero/name avatar
+            const coverImg = Array.from(document.querySelectorAll('img')).find(img => 
+              parseInt(img.getAttribute('width') || '0') > 2000 && 
+              !img.closest('.custom-pdf-container') &&
+              !img.closest('[data-framer-name="Name"]') &&
+              !img.closest('[data-framer-name="Intro"]')
+            );
             const containers = coverImg && coverImg.parentElement ? [coverImg.parentElement.parentElement] : [];
             
             if (containers.length) {
@@ -799,14 +835,17 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
                 }
               });
             } else if (!document.querySelector('[data-pdf-fallback]')) {
-              const fallback = document.createElement('div');
-              fallback.dataset.pdfFallback = 'true';
-              fallback.className = 'custom-pdf-fallback';
-              
-              // Find the project page content wrapper if possible, otherwise use #main
-              const targetParent = document.querySelector('[data-framer-name="Desktop"], [data-framer-name="Tablet"], [data-framer-name="Phone"]') || document.querySelector('#main') || document.body;
-              targetParent.appendChild(fallback);
-              renderPdfContainer(fallback, pdfUrl);
+              // Only inject fallback if we are confirmed to be on a project page (not homepage)
+              const isProjectPage = !!document.querySelector('a[href$=".pdf"]') || window.location.pathname.toLowerCase().includes('/projects/');
+              if (isProjectPage) {
+                const fallback = document.createElement('div');
+                fallback.dataset.pdfFallback = 'true';
+                fallback.className = 'custom-pdf-fallback';
+                
+                const targetParent = document.querySelector('[data-framer-name="Desktop"], [data-framer-name="Tablet"], [data-framer-name="Phone"]') || document.querySelector('#main') || document.body;
+                targetParent.appendChild(fallback);
+                renderPdfContainer(fallback, pdfUrl);
+              }
             }
           }
         }
