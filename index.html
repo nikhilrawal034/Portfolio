@@ -6,30 +6,44 @@
 	<meta charset="utf-8">
 	<script>
 		(function() {
+			if (window.__deepLinkInitialized) return;
+			window.__deepLinkInitialized = true;
+
 			var params = new URLSearchParams(window.location.search);
 			var route = params.get('route');
 			if (route) {
-				var cleanRoute = decodeURIComponent(route);
-				var targetPath = cleanRoute.split('?')[0].replace(/\/+$/, '');
-				var slug = targetPath.split('/').pop();
+				var cleanRoute = decodeURIComponent(route).split('?')[0].replace(/\/+$/, '');
+				var slug = cleanRoute.split('/').pop().toLowerCase();
 
+				// Clean the URL bar immediately so subsequent reloads don't re-trigger loops
+				if (window.history && window.history.replaceState) {
+					window.history.replaceState(null, '', cleanRoute);
+				}
+
+				var attempts = 0;
 				function triggerNavigation() {
+					if (window.__navDone) return;
+					attempts++;
 					var links = Array.from(document.querySelectorAll('a[href]'));
 					var link = links.find(function(a) {
-						var href = a.getAttribute('href') || '';
-						return href === targetPath || href === '.' + targetPath || href === './projects/' + slug || href.endsWith('/' + slug);
+						var href = (a.getAttribute('href') || '').toLowerCase();
+						return href === cleanRoute.toLowerCase() || 
+							   href === '.' + cleanRoute.toLowerCase() || 
+							   href === './projects/' + slug || 
+							   href === '/projects/' + slug;
 					});
 					if (link) {
+						window.__navDone = true;
 						link.click();
+					} else if (attempts < 25) {
+						setTimeout(triggerNavigation, 100);
 					}
 				}
 
-				if (document.readyState === 'complete') {
-					setTimeout(triggerNavigation, 300);
+				if (document.readyState === 'loading') {
+					document.addEventListener('DOMContentLoaded', triggerNavigation);
 				} else {
-					window.addEventListener('load', function() {
-						setTimeout(triggerNavigation, 300);
-					});
+					setTimeout(triggerNavigation, 50);
 				}
 			}
 		})();
@@ -1049,7 +1063,15 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
         function checkAndInject() {
           const route = new URLSearchParams(window.location.search).get('route');
           const path = (route || window.location.pathname).toLowerCase();
-          if (!path.includes('/projects/')) return;
+          
+          if (!path.includes('/projects/')) {
+            document.querySelectorAll('.custom-pdf-container, .custom-pdf-fallback').forEach(el => el.remove());
+            document.querySelectorAll('[data-pdf-rendered], [data-pdf-injected]').forEach(el => {
+              delete el.dataset.pdfRendered;
+              delete el.dataset.pdfInjected;
+            });
+            return;
+          }
 
           const documentRoot = '/documents/';
           let pdfUrl = null;
@@ -1068,39 +1090,31 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
             pdfUrl = `${documentRoot}ProductTeardown.pdf`;
           }
           
-          if (pdfUrl) {
-            // Find ALL project presentation cover image containers across all breakpoints (Desktop, Tablet, Mobile)
-            const allImgs = Array.from(document.querySelectorAll('img'));
-            const coverImgs = allImgs.filter(img => {
-              if (img.closest('.custom-pdf-container')) return false;
-              if (img.closest('[data-framer-name="Name"]') || img.closest('[data-framer-name="Intro"]')) return false;
-              if (img.closest('header') || img.closest('nav')) return false;
-              const src = (img.src || img.getAttribute('src') || '').toLowerCase();
-              const w = img.naturalWidth || img.clientWidth || parseInt(img.getAttribute('width') || '0');
-              const h = img.naturalHeight || img.clientHeight || parseInt(img.getAttribute('height') || '0');
-              // Exclude small avatar / icon images
-              if (w > 0 && w < 120 && h > 0 && h < 120) return false;
-              return src.includes('framerusercontent.com/images/') || w > 200;
-            });
+          if (!pdfUrl) return;
 
-            if (coverImgs.length > 0) {
-              coverImgs.forEach(coverImg => {
-                if (!coverImg.parentElement) return;
-                const targetContainer = coverImg.parentElement.parentElement || coverImg.parentElement;
-                if (targetContainer && !targetContainer.dataset.pdfRendered) {
-                  targetContainer.dataset.pdfRendered = 'true';
-                  renderPdfContainer(targetContainer, pdfUrl);
-                }
-              });
-            } else if (!document.querySelector('[data-pdf-fallback]') && !document.querySelector('.custom-pdf-container')) {
-              const fallback = document.createElement('div');
-              fallback.dataset.pdfFallback = 'true';
-              fallback.className = 'custom-pdf-fallback';
-              
-              const targetParent = document.querySelector('[data-framer-name="Phone"], [data-framer-name="Tablet"], [data-framer-name="Desktop"]') || document.querySelector('#main') || document.body;
-              targetParent.appendChild(fallback);
-              renderPdfContainer(fallback, pdfUrl);
-            }
+          // Find ALL project presentation cover image containers across all breakpoints (Desktop, Tablet, Mobile)
+          const allImgs = Array.from(document.querySelectorAll('img'));
+          const coverImgs = allImgs.filter(img => {
+            if (img.closest('.custom-pdf-container')) return false;
+            if (img.closest('[data-framer-name="Name"]') || img.closest('[data-framer-name="Intro"]')) return false;
+            if (img.closest('header') || img.closest('nav')) return false;
+            const src = (img.src || img.getAttribute('src') || '').toLowerCase();
+            const w = img.naturalWidth || img.clientWidth || parseInt(img.getAttribute('width') || '0');
+            const h = img.naturalHeight || img.clientHeight || parseInt(img.getAttribute('height') || '0');
+            // Exclude small avatar / icon images
+            if (w > 0 && w < 120 && h > 0 && h < 120) return false;
+            return src.includes('framerusercontent.com/images/') || w > 200;
+          });
+
+          if (coverImgs.length > 0) {
+            coverImgs.forEach(coverImg => {
+              if (!coverImg.parentElement) return;
+              const targetContainer = coverImg.parentElement.parentElement || coverImg.parentElement;
+              if (targetContainer && !targetContainer.dataset.pdfRendered) {
+                targetContainer.dataset.pdfRendered = 'true';
+                renderPdfContainer(targetContainer, pdfUrl);
+              }
+            });
           }
         }
         let injectTimer;
