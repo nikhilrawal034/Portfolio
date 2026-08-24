@@ -1056,12 +1056,12 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           const route = (new URLSearchParams(window.location.search).get('route') || '').toLowerCase();
           const currentPath = route || path;
 
+          // Must be a specific project path
           if (!currentPath.includes('/projects/')) return false;
 
-          // If homepage elements or multiple project links are present, we are still on the homepage
-          const hasHero = !!document.querySelector('[data-framer-name="Intro"]') || !!document.querySelector('[data-framer-name="Name"]');
-          const projectLinks = document.querySelectorAll('a[href*="/projects/"], a[href*="./projects/"]');
-          if (hasHero && projectLinks.length > 1) {
+          // If there are 2 or more project card links on the page, we are on the Homepage project list
+          const projectLinks = document.querySelectorAll('a[href*="projects/"]');
+          if (projectLinks.length >= 2) {
             return false;
           }
 
