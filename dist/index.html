@@ -1057,12 +1057,8 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           const route = (new URLSearchParams(window.location.search).get('route') || '').toLowerCase();
           const currentPath = route || path;
 
-          // Must be a specific project path
-          if (!currentPath.includes('/projects/')) return false;
-
-          // If there are 2 or more project card links on the page, we are on the Homepage project list
-          const projectLinks = document.querySelectorAll('a[href*="projects/"]');
-          if (projectLinks.length >= 2) {
+          // Must be a specific project path like /projects/zepto, /projects/book-my-show, etc.
+          if (!currentPath.includes('/projects/') || currentPath === '/projects' || currentPath === '/projects/') {
             return false;
           }
 
@@ -1101,12 +1097,15 @@ Showcasing real projects, creative problem-solving, and user-centric strategies.
           
           if (!pdfUrl) return;
 
-          // Find the project presentation cover image container (only on the project page)
+          // Find ONLY the main project presentation container at the top of the case study
+          // Strictly exclude any images inside <a> tags (which are related project links at the bottom like "VIEW ALL PROJECTS")
           const allImgs = Array.from(document.querySelectorAll('img'));
           const coverImgs = allImgs.filter(img => {
             if (img.closest('.custom-pdf-container')) return false;
+            // Exclude lower project recommendation links & cards
+            if (img.closest('a')) return false;
             if (img.closest('[data-framer-name="Name"]') || img.closest('[data-framer-name="Intro"]')) return false;
-            if (img.closest('header') || img.closest('nav')) return false;
+            if (img.closest('header') || img.closest('nav') || img.closest('footer')) return false;
             const src = (img.src || img.getAttribute('src') || '').toLowerCase();
             const w = img.naturalWidth || img.clientWidth || parseInt(img.getAttribute('width') || '0');
             const h = img.naturalHeight || img.clientHeight || parseInt(img.getAttribute('height') || '0');
