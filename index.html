@@ -8,34 +8,34 @@
 		(function() {
 			var params = new URLSearchParams(window.location.search);
 			var route = params.get('route');
-			if (!route) return;
-
-			var cleanRoute = decodeURIComponent(route).split('?')[0].replace(/\/+$/, '');
-			var slug = cleanRoute.split('/').pop().toLowerCase();
-
-			var attempts = 0;
-			function attemptNavigation() {
-				attempts++;
-				var links = Array.from(document.querySelectorAll('a[href]'));
-				var link = links.find(function(a) {
-					var href = (a.getAttribute('href') || '').toLowerCase();
-					return href === cleanRoute.toLowerCase() || 
-						   href === '.' + cleanRoute.toLowerCase() || 
-						   href === './projects/' + slug || 
-						   href === '/projects/' + slug;
-				});
-
-				if (link) {
-					link.click();
-				} else if (attempts < 30) {
-					setTimeout(attemptNavigation, 100);
+			if (route) {
+				var cleanRoute = decodeURIComponent(route).split('?')[0].replace(/\/+$/, '');
+				if (window.history && window.history.replaceState) {
+					window.history.replaceState(null, '', cleanRoute);
 				}
 			}
 
-			if (document.readyState === 'loading') {
-				document.addEventListener('DOMContentLoaded', attemptNavigation);
-			} else {
-				setTimeout(attemptNavigation, 50);
+			// If current path is a deep route (not the homepage), remove data-framer-hydrate-v2
+			// so Framer natively renders the target route from scratch without hydration mismatch or crash loops!
+			var currentPath = window.location.pathname.toLowerCase();
+			if (currentPath && currentPath !== '/' && currentPath !== '/index.html') {
+				function prepareMainForClientRouting() {
+					var main = document.getElementById('main');
+					if (main && main.hasAttribute('data-framer-hydrate-v2')) {
+						main.removeAttribute('data-framer-hydrate-v2');
+						main.innerHTML = '';
+					}
+				}
+				prepareMainForClientRouting();
+				var obs = new MutationObserver(function() {
+					var main = document.getElementById('main');
+					if (main) {
+						prepareMainForClientRouting();
+						obs.disconnect();
+					}
+				});
+				obs.observe(document.documentElement, { childList: true, subtree: true });
+				document.addEventListener('DOMContentLoaded', prepareMainForClientRouting);
 			}
 		})();
 	</script>
